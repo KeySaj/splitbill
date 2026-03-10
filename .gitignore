@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+local.properties
+
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Environment files
+.env
+
+# Logs
+*.log
