@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, EmailStr
 
 app = FastAPI(title="SplitBill Auth Service")
@@ -17,6 +17,10 @@ class LoginRequest(BaseModel):
 class AuthResponse(BaseModel):
     message: str
     token: str | None = None
+
+
+class CurrentUserResponse(BaseModel):
+    email: EmailStr
 
 
 fake_users_db: dict[str, dict] = {}
@@ -61,3 +65,15 @@ def login(payload: LoginRequest):
         message="Login successful",
         token=fake_token
     )
+
+
+@app.get("/auth/me", response_model=CurrentUserResponse)
+def get_current_user(token: str):
+    token_prefix = "fake-jwt-token-for-"
+
+    if not token.startswith(token_prefix):
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    email = token.replace(token_prefix, "")
+
+    return CurrentUserResponse(email=email)
