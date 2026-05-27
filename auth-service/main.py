@@ -1,8 +1,21 @@
 from fastapi import FastAPI, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
+from jose import jwt, JWTError
+from datetime import datetime, timedelta
 
 app = FastAPI(title="SplitBill Auth Service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+SECRET_KEY = "splitbill-secret-key"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -25,6 +38,22 @@ class CurrentUserResponse(BaseModel):
 
 fake_users_db: dict[str, dict] = {}
 
+def create_access_token(data: dict):
+    to_encode = data.copy()
+
+    expire = datetime.utcnow() + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return encoded_jwt
 
 @app.get("/")
 def root():
@@ -59,21 +88,38 @@ def login(payload: LoginRequest):
     if not user or user["password"] != payload.password:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    fake_token = f"fake-jwt-token-for-{payload.email}"
+    access_token = create_access_token(
+    {"sub": payload.email}
+)
 
     return AuthResponse(
         message="Login successful",
-        token=fake_token
+        token=access_token
     )
 
 
 @app.get("/auth/me", response_model=CurrentUserResponse)
 def get_current_user(token: str):
-    token_prefix = "fake-jwt-token-for-"
 
-    if not token.startswith(token_prefix):
-        raise HTTPException(status_code=401, detail="Invalid token")
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
 
-    email = token.replace(token_prefix, "")
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
 
     return CurrentUserResponse(email=email)
