@@ -93,6 +93,31 @@ def get_group(group_id: int):
     group = find_group(group_id)
     return group
 
+@app.put("/groups/{group_id}", response_model=Group)
+def update_group(group_id: int, payload: GroupCreate):
+    group = find_group(group_id)
+
+    if not payload.name:
+        raise HTTPException(status_code=400, detail="Group name is required")
+
+    if len(payload.members) < 2:
+        raise HTTPException(status_code=400, detail="Group must have at least 2 members")
+
+    group.name = payload.name
+    group.members = payload.members
+
+    return group
+
+@app.delete("/groups/{group_id}")
+def delete_group(group_id: int):
+    group = find_group(group_id)
+
+    groups.remove(group)
+
+    global expenses
+    expenses = [expense for expense in expenses if expense.group_id != group_id]
+
+    return {"message": "Group deleted successfully"}
 
 @app.post("/groups/{group_id}/expenses", response_model=Expense)
 def create_expense(group_id: int, payload: ExpenseCreate):
@@ -127,6 +152,42 @@ def create_expense(group_id: int, payload: ExpenseCreate):
 
     return expense
 
+@app.put("/expenses/{expense_id}", response_model=Expense)
+def update_expense(expense_id: int, payload: ExpenseCreate):
+    for expense in expenses:
+        if expense.id == expense_id:
+            group = find_group(expense.group_id)
+
+            if payload.amount <= 0:
+                raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+
+            if payload.paid_by not in group.members:
+                raise HTTPException(status_code=400, detail="Payer must be a group member")
+
+            for participant in payload.participants:
+                if participant not in group.members:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Participant {participant} is not a group member"
+                    )
+
+            expense.title = payload.title
+            expense.amount = payload.amount
+            expense.paid_by = payload.paid_by
+            expense.participants = payload.participants
+
+            return expense
+
+    raise HTTPException(status_code=404, detail="Expense not found")
+
+@app.delete("/expenses/{expense_id}")
+def delete_expense(expense_id: int):
+    for expense in expenses:
+        if expense.id == expense_id:
+            expenses.remove(expense)
+            return {"message": "Expense deleted successfully"}
+
+    raise HTTPException(status_code=404, detail="Expense not found")
 
 @app.get("/groups/{group_id}/expenses", response_model=list[Expense])
 def get_group_expenses(group_id: int):
