@@ -1,6 +1,7 @@
-version: '3.8'
+version: "3.8"
 
 services:
+
   auth-service:
     build: ./auth-service
     ports:
@@ -9,15 +10,15 @@ services:
   expense-service:
     build: ./expense-service
     ports:
-      - "8001:8000"
+      - "8001:8001"
     depends_on:
-    - postgres
+      - postgres
 
   postgres:
-  image: postgres:16
-  environment:
-    POSTGRES_USER: splitbill
-    POSTGRES_PASSWORD: splitbill
-    POSTGRES_DB: splitbill
-  ports:
-    - "5432:5432"
+    image: postgres:16
+    environment:
+      POSTGRES_USER: splitbill
+      POSTGRES_PASSWORD: splitbill
+      POSTGRES_DB: splitbill
+    ports:
+      - "5432:5432"
