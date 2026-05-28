@@ -9,6 +9,10 @@ fun MainScreen() {
         mutableStateOf<Screen>(Screen.Login)
     }
 
+    var refreshGroups by remember {
+        mutableStateOf(false)
+    }
+
     when (currentScreen) {
 
         Screen.Login -> LoginScreen(
@@ -27,16 +31,26 @@ fun MainScreen() {
         )
 
         Screen.Groups -> GroupsScreen(
+            refresh = refreshGroups,
+
             onAddGroupClick = {
                 currentScreen = Screen.AddGroup
             },
+
             onGroupClick = {
                 currentScreen = Screen.GroupDetails
+            },
+
+            onLogoutClick = {
+                currentScreen = Screen.Login
             }
         )
 
         Screen.AddGroup -> AddGroupScreen(
             onBackClick = {
+
+                refreshGroups = !refreshGroups
+
                 currentScreen = Screen.Groups
             }
         )
@@ -45,9 +59,11 @@ fun MainScreen() {
             onAddExpenseClick = {
                 currentScreen = Screen.AddExpense
             },
+
             onSettlementsClick = {
                 currentScreen = Screen.Settlements
             },
+
             onBackClick = {
                 currentScreen = Screen.Groups
             }
