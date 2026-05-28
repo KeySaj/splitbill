@@ -23,7 +23,7 @@ import retrofit2.Response
 fun GroupsScreen(
     refresh: Boolean,
     onAddGroupClick: () -> Unit,
-    onGroupClick: () -> Unit,
+    onGroupClick: (Int) -> Unit,
     onLogoutClick: () -> Unit
 ) {
 
@@ -101,7 +101,9 @@ fun GroupsScreen(
                             .padding(bottom = 18.dp),
                         shape = RoundedCornerShape(28.dp),
                         elevation = CardDefaults.cardElevation(8.dp),
-                        onClick = onGroupClick,
+                        onClick = {
+                            onGroupClick(group.id)
+                        },
                         colors = CardDefaults.cardColors(
                             containerColor = Color.White
                         )
@@ -135,7 +137,9 @@ fun GroupsScreen(
                                 )
                             }
 
-                            Column {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
 
                                 Text(
                                     text = group.name,
@@ -149,6 +153,35 @@ fun GroupsScreen(
                                     text = "${group.members.size} members",
                                     color = Color.Gray
                                 )
+                            }
+
+                            Button(
+                                onClick = {
+                                    RetrofitInstance.api.deleteGroup(group.id)
+                                        .enqueue(object : Callback<Map<String, String>> {
+
+                                            override fun onResponse(
+                                                call: Call<Map<String, String>>,
+                                                response: Response<Map<String, String>>
+                                            ) {
+                                                if (response.isSuccessful) {
+                                                    groups = groups.filter { it.id != group.id }
+                                                }
+                                            }
+
+                                            override fun onFailure(
+                                                call: Call<Map<String, String>>,
+                                                t: Throwable
+                                            ) {
+                                                t.printStackTrace()
+                                            }
+                                        })
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFE53935)
+                                )
+                            ) {
+                                Text("Delete")
                             }
                         }
                     }

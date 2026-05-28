@@ -20,13 +20,54 @@ import retrofit2.Response
 
 @Composable
 fun AddExpenseScreen(
+    groupId: Int,
     onBackClick: () -> Unit
 ) {
-
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+
+    var members by remember { mutableStateOf<List<String>>(emptyList()) }
     var paidBy by remember { mutableStateOf("") }
-    var participants by remember { mutableStateOf("") }
+    var selectedParticipants by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoadingMembers by remember { mutableStateOf(true) }
+
+    LaunchedEffect(groupId) {
+        isLoadingMembers = true
+
+        RetrofitInstance.api.getGroup(groupId)
+            .enqueue(object : Callback<Group> {
+
+                override fun onResponse(
+                    call: Call<Group>,
+                    response: Response<Group>
+                ) {
+                    if (response.isSuccessful) {
+                        val loadedMembers = response.body()?.members ?: emptyList()
+
+                        members = loadedMembers
+
+                        if (loadedMembers.isNotEmpty()) {
+                            paidBy = loadedMembers.first()
+                            selectedParticipants = loadedMembers
+                        }
+                    } else {
+                        errorMessage = "Could not load group members"
+                    }
+
+                    isLoadingMembers = false
+                }
+
+                override fun onFailure(
+                    call: Call<Group>,
+                    t: Throwable
+                ) {
+                    errorMessage = "Backend connection error"
+                    isLoadingMembers = false
+                }
+            })
+    }
 
     Column(
         modifier = Modifier
@@ -72,7 +113,6 @@ fun AddExpenseScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-
                     Text(
                         text = "💸",
                         fontSize = 34.sp
@@ -101,29 +141,79 @@ fun AddExpenseScreen(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(22.dp))
 
-                OutlinedTextField(
-                    value = paidBy,
-                    onValueChange = { paidBy = it },
-                    label = { Text("Paid By") },
-                    shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                if (isLoadingMembers) {
+                    CircularProgressIndicator()
+                } else {
 
-                Spacer(modifier = Modifier.height(18.dp))
+                    Text(
+                        text = "Paid by",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
 
-                OutlinedTextField(
-                    value = participants,
-                    onValueChange = { participants = it },
-                    label = { Text("Participants") },
-                    supportingText = {
-                        Text("Example: Jan, Jakub")
-                    },
-                    shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    members.forEach { member ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            RadioButton(
+                                selected = paidBy == member,
+                                onClick = {
+                                    paidBy = member
+                                }
+                            )
+
+                            Text(text = member)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text(
+                        text = "Participants",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    members.forEach { member ->
+                        val checked = selectedParticipants.contains(member)
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { isChecked ->
+                                    selectedParticipants =
+                                        if (isChecked) {
+                                            selectedParticipants + member
+                                        } else {
+                                            selectedParticipants - member
+                                        }
+                                }
+                            )
+
+                            Text(text = member)
+                        }
+                    }
+                }
+
+                errorMessage?.let {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = it,
+                        color = Color.Red,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
 
@@ -131,33 +221,56 @@ fun AddExpenseScreen(
 
         Button(
             onClick = {
+                val parsedAmount = amount.toDoubleOrNull()
+
+                if (title.isBlank()) {
+                    errorMessage = "Expense title is required"
+                    return@Button
+                }
+
+                if (parsedAmount == null || parsedAmount <= 0) {
+                    errorMessage = "Amount must be greater than 0"
+                    return@Button
+                }
+
+                if (paidBy.isBlank()) {
+                    errorMessage = "Select who paid"
+                    return@Button
+                }
+
+                if (selectedParticipants.isEmpty()) {
+                    errorMessage = "Select at least one participant"
+                    return@Button
+                }
+
+                errorMessage = null
 
                 val request = CreateExpenseRequest(
                     title = title,
-                    amount = amount.toDoubleOrNull() ?: 0.0,
+                    amount = parsedAmount,
                     paid_by = paidBy,
-                    participants = participants
-                        .split(",")
-                        .map { it.trim() }
+                    participants = selectedParticipants
                 )
 
-                RetrofitInstance.api.createExpense(1, request)
+                RetrofitInstance.api.createExpense(groupId, request)
                     .enqueue(object : Callback<Expense> {
 
                         override fun onResponse(
                             call: Call<Expense>,
                             response: Response<Expense>
                         ) {
-
-                            onBackClick()
+                            if (response.isSuccessful) {
+                                onBackClick()
+                            } else {
+                                errorMessage = "Could not add expense"
+                            }
                         }
 
                         override fun onFailure(
                             call: Call<Expense>,
                             t: Throwable
                         ) {
-
-                            t.printStackTrace()
+                            errorMessage = "Backend connection error"
                         }
                     })
             },
@@ -169,7 +282,6 @@ fun AddExpenseScreen(
                 containerColor = Color(0xFF7C4DFF)
             )
         ) {
-
             Text(
                 text = "Save Expense",
                 fontSize = 18.sp
@@ -185,7 +297,6 @@ fun AddExpenseScreen(
                 .height(58.dp),
             shape = RoundedCornerShape(18.dp)
         ) {
-
             Text(
                 text = "Back",
                 fontSize = 17.sp
