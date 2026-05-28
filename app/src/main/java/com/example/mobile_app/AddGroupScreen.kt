@@ -24,6 +24,7 @@ fun AddGroupScreen(
 
     var groupName by remember { mutableStateOf("") }
     var members by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -104,14 +105,37 @@ fun AddGroupScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = it,
+                color = Color.Red,
+                fontSize = 14.sp
+            )
+        }
+
         Button(
             onClick = {
 
+                val memberList = members
+                    .split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+
+                if (groupName.isBlank()) {
+                    errorMessage = "Group name is required"
+                    return@Button
+                }
+
+                if (memberList.size < 2) {
+                    errorMessage = "Add at least 2 members, e.g. Jan, Jakub"
+                    return@Button
+                }
+
                 val request = CreateGroupRequest(
                     name = groupName,
-                    members = members
-                        .split(",")
-                        .map { it.trim() }
+                    members = memberList
                 )
 
                 RetrofitInstance.api.createGroup(request)
@@ -121,8 +145,9 @@ fun AddGroupScreen(
                             call: Call<Group>,
                             response: Response<Group>
                         ) {
-
-                            onBackClick()
+                            if (response.isSuccessful) {
+                                onBackClick()
+                            }
                         }
 
                         override fun onFailure(

@@ -13,6 +13,10 @@ fun MainScreen() {
         mutableStateOf(false)
     }
 
+    var selectedGroupId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
     when (currentScreen) {
 
         Screen.Login -> LoginScreen(
@@ -37,7 +41,8 @@ fun MainScreen() {
                 currentScreen = Screen.AddGroup
             },
 
-            onGroupClick = {
+            onGroupClick = { groupId ->
+                selectedGroupId = groupId
                 currentScreen = Screen.GroupDetails
             },
 
@@ -48,14 +53,14 @@ fun MainScreen() {
 
         Screen.AddGroup -> AddGroupScreen(
             onBackClick = {
-
                 refreshGroups = !refreshGroups
-
                 currentScreen = Screen.Groups
             }
         )
 
         Screen.GroupDetails -> GroupDetailsScreen(
+            groupId = selectedGroupId ?: 1,
+
             onAddExpenseClick = {
                 currentScreen = Screen.AddExpense
             },
@@ -70,12 +75,16 @@ fun MainScreen() {
         )
 
         Screen.AddExpense -> AddExpenseScreen(
+            groupId = selectedGroupId ?: 1,
+
             onBackClick = {
                 currentScreen = Screen.GroupDetails
             }
         )
 
         Screen.Settlements -> SettlementsScreen(
+            groupId = selectedGroupId ?: 1,
+
             onBackClick = {
                 currentScreen = Screen.GroupDetails
             }

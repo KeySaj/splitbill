@@ -9,14 +9,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 @Composable
 fun RegisterScreen(
     onBackClick: () -> Unit
 ) {
-
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -46,7 +51,8 @@ fun RegisterScreen(
             onValueChange = { email = it },
             label = { Text("Email") },
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -56,17 +62,85 @@ fun RegisterScreen(
             onValueChange = { password = it },
             label = { Text("Password") },
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
+
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        successMessage?.let {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = onBackClick,
+            onClick = {
+                if (email.isBlank()) {
+                    errorMessage = "Email is required"
+                    successMessage = null
+                    return@Button
+                }
+
+                if (password.length < 6) {
+                    errorMessage = "Password must have at least 6 characters"
+                    successMessage = null
+                    return@Button
+                }
+
+                isLoading = true
+                errorMessage = null
+                successMessage = null
+
+                val request = RegisterRequest(
+                    email = email,
+                    password = password
+                )
+
+                AuthRetrofitInstance.api.register(request)
+                    .enqueue(object : Callback<AuthResponse> {
+
+                        override fun onResponse(
+                            call: Call<AuthResponse>,
+                            response: Response<AuthResponse>
+                        ) {
+                            isLoading = false
+
+                            if (response.isSuccessful) {
+                                successMessage = "Account created. You can log in now."
+                            } else {
+                                errorMessage = "Could not create account"
+                            }
+                        }
+
+                        override fun onFailure(
+                            call: Call<AuthResponse>,
+                            t: Throwable
+                        ) {
+                            isLoading = false
+                            errorMessage = "Backend connection error"
+                        }
+                    })
+            },
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Register")
+            Text(
+                text = if (isLoading) "Creating..." else "Register"
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))

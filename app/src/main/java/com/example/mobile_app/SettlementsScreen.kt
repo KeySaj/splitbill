@@ -20,6 +20,7 @@ import retrofit2.Response
 
 @Composable
 fun SettlementsScreen(
+    groupId: Int,
     onBackClick: () -> Unit
 ) {
 
@@ -31,9 +32,9 @@ fun SettlementsScreen(
         mutableStateOf(true)
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(groupId) {
 
-        RetrofitInstance.api.getSettlements(1)
+        RetrofitInstance.api.getSettlements(groupId)
             .enqueue(object : Callback<List<Settlement>> {
 
                 override fun onResponse(

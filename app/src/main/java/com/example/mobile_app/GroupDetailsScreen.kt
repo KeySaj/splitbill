@@ -20,6 +20,7 @@ import retrofit2.Response
 
 @Composable
 fun GroupDetailsScreen(
+    groupId: Int,
     onAddExpenseClick: () -> Unit,
     onSettlementsClick: () -> Unit,
     onBackClick: () -> Unit
@@ -33,16 +34,17 @@ fun GroupDetailsScreen(
         mutableStateOf(true)
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(groupId) {
 
-        RetrofitInstance.api.getExpenses(1)
+        isLoading = true
+
+        RetrofitInstance.api.getExpenses(groupId)
             .enqueue(object : Callback<List<Expense>> {
 
                 override fun onResponse(
                     call: Call<List<Expense>>,
                     response: Response<List<Expense>>
                 ) {
-
                     if (response.isSuccessful) {
                         expenses = response.body() ?: emptyList()
                     }
@@ -54,7 +56,6 @@ fun GroupDetailsScreen(
                     call: Call<List<Expense>>,
                     t: Throwable
                 ) {
-
                     isLoading = false
                 }
             })
@@ -166,6 +167,36 @@ fun GroupDetailsScreen(
                                     color = Color.Gray
                                 )
                             }
+
+                            Button(
+                                onClick = {
+                                    RetrofitInstance.api.deleteExpense(expense.id)
+                                        .enqueue(object : Callback<Map<String, String>> {
+
+                                            override fun onResponse(
+                                                call: Call<Map<String, String>>,
+                                                response: Response<Map<String, String>>
+                                            ) {
+                                                if (response.isSuccessful) {
+                                                    expenses = expenses.filter { it.id != expense.id }
+                                                }
+                                            }
+
+                                            override fun onFailure(
+                                                call: Call<Map<String, String>>,
+                                                t: Throwable
+                                            ) {
+                                                t.printStackTrace()
+                                            }
+                                        })
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFE53935)
+                                )
+                            ) {
+                                Text("Delete")
+                            }
+
                         }
                     }
                 }
