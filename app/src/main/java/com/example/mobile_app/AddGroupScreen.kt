@@ -7,37 +7,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun RegisterScreen(
+fun AddGroupScreen(
     onBackClick: () -> Unit
 ) {
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var groupName by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(24.dp)
     ) {
 
-        Text("Register")
+        Text("Add Group")
 
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
+            value = groupName,
+            onValueChange = { groupName = it },
+            label = { Text("Group Name") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -47,7 +36,7 @@ fun RegisterScreen(
             onClick = onBackClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Create Account")
+            Text("Create Group")
         }
     }
 }
