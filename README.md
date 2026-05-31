@@ -38,3 +38,20 @@ API documentation will be generated automatically using OpenAPI/Swagger.
 ## Status
 
 Work in progress⌛
+
+# API endpoints
+
+## Auth Service - port 8000
+
+POST /auth/register
+POST /auth/login
+GET /auth/me?token={token}
+
+## Expense Service - port 8001
+
+POST /groups
+GET /groups
+GET /groups/{group_id}
+POST /groups/{group_id}/expenses
+GET /groups/{group_id}/expenses
+GET /groups/{group_id}/settlements
