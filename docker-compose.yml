@@ -6,11 +6,18 @@ services:
     build: ./auth-service
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://splitbill:splitbill@postgres:5432/splitbill
+    depends_on:
+      - postgres
 
   expense-service:
     build: ./expense-service
     ports:
       - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://splitbill:splitbill@postgres:5432/splitbill
+      AUTH_SECRET_KEY: splitbill-secret-key
     depends_on:
       - postgres
 
@@ -22,3 +29,8 @@ services:
       POSTGRES_DB: splitbill
     ports:
       - "5432:5432"
+    volumes:
+      - splitbill_data:/var/lib/postgresql/data
+
+volumes:
+  splitbill_data:

@@ -1,8 +1,30 @@
-from fastapi import FastAPI, HTTPException
+import os
+import time
+
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
+from jose import jwt, JWTError
 from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://splitbill:splitbill@localhost:5432/splitbill"
+)
+
+SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "splitbill-secret-key")
+ALGORITHM = "HS256"
+security = HTTPBearer()
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+Base = declarative_base()
 
 app = FastAPI(title="SplitBill Expense Service")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -10,6 +32,58 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class GroupDb(Base):
+    __tablename__ = "groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    owner_email = Column(String, nullable=False, index=True)
+
+    members = relationship("GroupMemberDb", cascade="all, delete-orphan")
+    expenses = relationship("ExpenseDb", cascade="all, delete-orphan")
+
+
+class GroupMemberDb(Base):
+    __tablename__ = "group_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    name = Column(String, nullable=False)
+
+
+class ExpenseDb(Base):
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    title = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    paid_by = Column(String, nullable=False)
+
+    participants = relationship("ExpenseParticipantDb", cascade="all, delete-orphan")
+
+
+class ExpenseParticipantDb(Base):
+    __tablename__ = "expense_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    expense_id = Column(Integer, ForeignKey("expenses.id"), nullable=False)
+    name = Column(String, nullable=False)
+
+
+for attempt in range(10):
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Expense database connected and tables created")
+        break
+    except OperationalError:
+        print("Expense database not ready yet, waiting...")
+        time.sleep(3)
+else:
+    raise Exception("Could not connect to expense database")
+
 
 class GroupCreate(BaseModel):
     name: str
@@ -44,11 +118,62 @@ class Settlement(BaseModel):
     amount: float
 
 
-groups: list[Group] = []
-expenses: list[Expense] = []
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-next_group_id = 1
-next_expense_id = 1
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    try:
+        token = credentials.credentials
+
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        return email
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def group_to_response(group: GroupDb):
+    return Group(
+        id=group.id,
+        name=group.name,
+        members=[member.name for member in group.members]
+    )
+
+
+def expense_to_response(expense: ExpenseDb):
+    return Expense(
+        id=expense.id,
+        group_id=expense.group_id,
+        title=expense.title,
+        amount=expense.amount,
+        paid_by=expense.paid_by,
+        participants=[participant.name for participant in expense.participants]
+    )
+
+
+def find_group(db: Session, group_id: int, current_user: str):
+    group = (
+        db.query(GroupDb)
+        .filter(GroupDb.id == group_id, GroupDb.owner_email == current_user)
+        .first()
+    )
+
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    return group
 
 
 @app.get("/")
@@ -62,40 +187,62 @@ def health():
 
 
 @app.post("/groups", response_model=Group)
-def create_group(payload: GroupCreate):
-    global next_group_id
-
+def create_group(
+    payload: GroupCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
     if not payload.name:
         raise HTTPException(status_code=400, detail="Group name is required")
 
     if len(payload.members) < 2:
         raise HTTPException(status_code=400, detail="Group must have at least 2 members")
 
-    group = Group(
-        id=next_group_id,
+    group = GroupDb(
         name=payload.name,
-        members=payload.members
+        owner_email=current_user
     )
 
-    groups.append(group)
-    next_group_id += 1
+    db.add(group)
+    db.commit()
+    db.refresh(group)
 
-    return group
+    for member_name in payload.members:
+        db.add(GroupMemberDb(group_id=group.id, name=member_name))
+
+    db.commit()
+    db.refresh(group)
+
+    return group_to_response(group)
 
 
 @app.get("/groups", response_model=list[Group])
-def get_groups():
-    return groups
+def get_groups(
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    groups = db.query(GroupDb).filter(GroupDb.owner_email == current_user).all()
+    return [group_to_response(group) for group in groups]
 
 
 @app.get("/groups/{group_id}", response_model=Group)
-def get_group(group_id: int):
-    group = find_group(group_id)
-    return group
+def get_group(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    group = find_group(db, group_id, current_user)
+    return group_to_response(group)
+
 
 @app.put("/groups/{group_id}", response_model=Group)
-def update_group(group_id: int, payload: GroupCreate):
-    group = find_group(group_id)
+def update_group(
+    group_id: int,
+    payload: GroupCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    group = find_group(db, group_id, current_user)
 
     if not payload.name:
         raise HTTPException(status_code=400, detail="Group name is required")
@@ -104,110 +251,182 @@ def update_group(group_id: int, payload: GroupCreate):
         raise HTTPException(status_code=400, detail="Group must have at least 2 members")
 
     group.name = payload.name
-    group.members = payload.members
 
-    return group
+    db.query(GroupMemberDb).filter(GroupMemberDb.group_id == group.id).delete()
+
+    for member_name in payload.members:
+        db.add(GroupMemberDb(group_id=group.id, name=member_name))
+
+    db.commit()
+    db.refresh(group)
+
+    return group_to_response(group)
+
 
 @app.delete("/groups/{group_id}")
-def delete_group(group_id: int):
-    group = find_group(group_id)
+def delete_group(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    group = find_group(db, group_id, current_user)
 
-    groups.remove(group)
-
-    global expenses
-    expenses = [expense for expense in expenses if expense.group_id != group_id]
+    db.delete(group)
+    db.commit()
 
     return {"message": "Group deleted successfully"}
 
-@app.post("/groups/{group_id}/expenses", response_model=Expense)
-def create_expense(group_id: int, payload: ExpenseCreate):
-    global next_expense_id
 
-    group = find_group(group_id)
+@app.post("/groups/{group_id}/expenses", response_model=Expense)
+def create_expense(
+    group_id: int,
+    payload: ExpenseCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    group = find_group(db, group_id, current_user)
+    group_members = [member.name for member in group.members]
 
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than 0")
 
-    if payload.paid_by not in group.members:
+    if payload.paid_by not in group_members:
         raise HTTPException(status_code=400, detail="Payer must be a group member")
-
-    for participant in payload.participants:
-        if participant not in group.members:
-            raise HTTPException(status_code=400, detail=f"Participant {participant} is not a group member")
 
     if len(payload.participants) == 0:
         raise HTTPException(status_code=400, detail="Expense must have at least one participant")
 
-    expense = Expense(
-        id=next_expense_id,
-        group_id=group_id,
+    for participant in payload.participants:
+        if participant not in group_members:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Participant {participant} is not a group member"
+            )
+
+    expense = ExpenseDb(
+        group_id=group.id,
         title=payload.title,
         amount=payload.amount,
-        paid_by=payload.paid_by,
-        participants=payload.participants
+        paid_by=payload.paid_by
     )
 
-    expenses.append(expense)
-    next_expense_id += 1
+    db.add(expense)
+    db.commit()
+    db.refresh(expense)
 
-    return expense
+    for participant in payload.participants:
+        db.add(ExpenseParticipantDb(expense_id=expense.id, name=participant))
 
-@app.put("/expenses/{expense_id}", response_model=Expense)
-def update_expense(expense_id: int, payload: ExpenseCreate):
-    for expense in expenses:
-        if expense.id == expense_id:
-            group = find_group(expense.group_id)
+    db.commit()
+    db.refresh(expense)
 
-            if payload.amount <= 0:
-                raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+    return expense_to_response(expense)
 
-            if payload.paid_by not in group.members:
-                raise HTTPException(status_code=400, detail="Payer must be a group member")
-
-            for participant in payload.participants:
-                if participant not in group.members:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Participant {participant} is not a group member"
-                    )
-
-            expense.title = payload.title
-            expense.amount = payload.amount
-            expense.paid_by = payload.paid_by
-            expense.participants = payload.participants
-
-            return expense
-
-    raise HTTPException(status_code=404, detail="Expense not found")
-
-@app.delete("/expenses/{expense_id}")
-def delete_expense(expense_id: int):
-    for expense in expenses:
-        if expense.id == expense_id:
-            expenses.remove(expense)
-            return {"message": "Expense deleted successfully"}
-
-    raise HTTPException(status_code=404, detail="Expense not found")
 
 @app.get("/groups/{group_id}/expenses", response_model=list[Expense])
-def get_group_expenses(group_id: int):
-    find_group(group_id)
-    return [expense for expense in expenses if expense.group_id == group_id]
+def get_group_expenses(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    group = find_group(db, group_id, current_user)
+
+    expenses = db.query(ExpenseDb).filter(ExpenseDb.group_id == group.id).all()
+
+    return [expense_to_response(expense) for expense in expenses]
+
+
+@app.put("/expenses/{expense_id}", response_model=Expense)
+def update_expense(
+    expense_id: int,
+    payload: ExpenseCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    expense = db.query(ExpenseDb).filter(ExpenseDb.id == expense_id).first()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    group = find_group(db, expense.group_id, current_user)
+    group_members = [member.name for member in group.members]
+
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+
+    if payload.paid_by not in group_members:
+        raise HTTPException(status_code=400, detail="Payer must be a group member")
+
+    if len(payload.participants) == 0:
+        raise HTTPException(status_code=400, detail="Expense must have at least one participant")
+
+    for participant in payload.participants:
+        if participant not in group_members:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Participant {participant} is not a group member"
+            )
+
+    expense.title = payload.title
+    expense.amount = payload.amount
+    expense.paid_by = payload.paid_by
+
+    db.query(ExpenseParticipantDb).filter(
+        ExpenseParticipantDb.expense_id == expense.id
+    ).delete()
+
+    for participant in payload.participants:
+        db.add(ExpenseParticipantDb(expense_id=expense.id, name=participant))
+
+    db.commit()
+    db.refresh(expense)
+
+    return expense_to_response(expense)
+
+
+@app.delete("/expenses/{expense_id}")
+def delete_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    expense = db.query(ExpenseDb).filter(ExpenseDb.id == expense_id).first()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    find_group(db, expense.group_id, current_user)
+
+    db.delete(expense)
+    db.commit()
+
+    return {"message": "Expense deleted successfully"}
 
 
 @app.get("/groups/{group_id}/settlements", response_model=list[Settlement])
-def get_settlements(group_id: int):
-    group = find_group(group_id)
-    group_expenses = [expense for expense in expenses if expense.group_id == group_id]
+def get_settlements(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    group = find_group(db, group_id, current_user)
+    group_members = [member.name for member in group.members]
 
-    balance = {member: 0.0 for member in group.members}
+    group_expenses = db.query(ExpenseDb).filter(ExpenseDb.group_id == group.id).all()
+
+    balance = {member: 0.0 for member in group_members}
 
     for expense in group_expenses:
-        split_amount = expense.amount / len(expense.participants)
+        participants = [participant.name for participant in expense.participants]
+
+        if len(participants) == 0:
+            continue
+
+        split_amount = expense.amount / len(participants)
 
         balance[expense.paid_by] += expense.amount
 
-        for participant in expense.participants:
+        for participant in participants:
             balance[participant] -= split_amount
 
     debtors = []
@@ -250,11 +469,3 @@ def get_settlements(group_id: int):
             j += 1
 
     return settlements
-
-
-def find_group(group_id: int):
-    for group in groups:
-        if group.id == group_id:
-            return group
-
-    raise HTTPException(status_code=404, detail="Group not found")

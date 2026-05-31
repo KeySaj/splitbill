@@ -1,12 +1,21 @@
 package com.example.mobile_app
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun MainScreen() {
 
+    val context = LocalContext.current
+
     var currentScreen by remember {
-        mutableStateOf<Screen>(Screen.Login)
+
+        mutableStateOf<Screen>(
+            if (TokenManager.getToken(context) != null)
+                Screen.Groups
+            else
+                Screen.Login
+        )
     }
 
     var refreshGroups by remember {
@@ -47,6 +56,9 @@ fun MainScreen() {
             },
 
             onLogoutClick = {
+
+                TokenManager.clearToken(context)
+
                 currentScreen = Screen.Login
             }
         )

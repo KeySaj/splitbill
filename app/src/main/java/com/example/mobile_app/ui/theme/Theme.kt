@@ -8,13 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PurplePrimary,
+    primary = BlackPrimary,
     background = Background,
     surface = CardBackground
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PurplePrimary,
+    primary = BlackPrimary,
     background = Background,
     surface = CardBackground
 )

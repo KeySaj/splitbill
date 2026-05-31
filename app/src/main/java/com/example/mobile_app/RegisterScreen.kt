@@ -12,6 +12,10 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 
 @Composable
 fun RegisterScreen(
@@ -19,9 +23,17 @@ fun RegisterScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    val inputColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = Color.Black,
+        unfocusedBorderColor = Color(0xFFBDBDBD),
+        focusedLabelColor = Color.Black,
+        unfocusedLabelColor = Color.Gray,
+        cursorColor = Color.Black
+    )
 
     Column(
         modifier = Modifier
@@ -52,7 +64,8 @@ fun RegisterScreen(
             label = { Text("Email") },
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            colors = inputColors
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -63,7 +76,20 @@ fun RegisterScreen(
             label = { Text("Password") },
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            colors = inputColors,
+            visualTransformation =
+                if (passwordVisible) VisualTransformation.None
+                else PasswordVisualTransformation(),
+
+            trailingIcon = {
+                TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Text(
+                        text = if (passwordVisible) "Hide" else "Show",
+                        color = Color.Black
+                    )
+                }
+            }
         )
 
         errorMessage?.let {
@@ -71,7 +97,8 @@ fun RegisterScreen(
 
             Text(
                 text = it,
-                color = MaterialTheme.colorScheme.error
+                color = Color(0xFFD32F2F),
+                fontWeight = FontWeight.Medium
             )
         }
 
@@ -80,7 +107,8 @@ fun RegisterScreen(
 
             Text(
                 text = it,
-                color = MaterialTheme.colorScheme.primary
+                color = Color(0xFF2E7D32),
+                fontWeight = FontWeight.Medium
             )
         }
 
@@ -135,8 +163,14 @@ fun RegisterScreen(
                     })
             },
             enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Black,
+                contentColor = Color.White
+            )
         ) {
             Text(
                 text = if (isLoading) "Creating..." else "Register"
@@ -145,7 +179,12 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        TextButton(onClick = onBackClick) {
+        TextButton(
+            onClick = onBackClick,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = Color.Black
+            )
+        ) {
             Text("Back to login")
         }
     }

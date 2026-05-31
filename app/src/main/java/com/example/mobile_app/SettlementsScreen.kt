@@ -17,12 +17,15 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun SettlementsScreen(
     groupId: Int,
     onBackClick: () -> Unit
 ) {
+
+    val context = LocalContext.current
 
     var settlements by remember {
         mutableStateOf<List<Settlement>>(emptyList())
@@ -34,7 +37,7 @@ fun SettlementsScreen(
 
     LaunchedEffect(groupId) {
 
-        RetrofitInstance.api.getSettlements(groupId)
+        RetrofitInstance.getApi(context).getSettlements(groupId)
             .enqueue(object : Callback<List<Settlement>> {
 
                 override fun onResponse(
@@ -67,11 +70,20 @@ fun SettlementsScreen(
             .padding(top = 56.dp, bottom = 20.dp)
     ) {
 
-        Text(
-            text = "💰 Settlements",
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Column {
+            Text(
+                text = "SplitBill",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+
+            Text(
+                text = "Settlements",
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
 
@@ -133,12 +145,7 @@ fun SettlementsScreen(
                                     modifier = Modifier
                                         .size(60.dp)
                                         .background(
-                                            brush = Brush.linearGradient(
-                                                listOf(
-                                                    Color(0xFF8B5CF6),
-                                                    Color(0xFFA78BFA)
-                                                )
-                                            ),
+                                            color = Color.Black,
                                             shape = RoundedCornerShape(18.dp)
                                         ),
                                     contentAlignment = Alignment.Center
@@ -165,7 +172,7 @@ fun SettlementsScreen(
                                     Text(
                                         text = "${settlement.amount} PLN",
                                         fontSize = 18.sp,
-                                        color = Color(0xFF7C4DFF),
+                                        color = Color.Black,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -181,9 +188,11 @@ fun SettlementsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(58.dp),
-            shape = RoundedCornerShape(18.dp)
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color.Black
+            )
         ) {
-
             Text(
                 text = "Back",
                 fontSize = 17.sp

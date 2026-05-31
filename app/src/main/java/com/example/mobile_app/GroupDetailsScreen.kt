@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun GroupDetailsScreen(
@@ -26,6 +27,8 @@ fun GroupDetailsScreen(
     onBackClick: () -> Unit
 ) {
 
+    val context = LocalContext.current
+
     var expenses by remember {
         mutableStateOf<List<Expense>>(emptyList())
     }
@@ -34,11 +37,34 @@ fun GroupDetailsScreen(
         mutableStateOf(true)
     }
 
+    var groupName by remember {
+        mutableStateOf("Group")
+    }
+
     LaunchedEffect(groupId) {
 
         isLoading = true
 
-        RetrofitInstance.api.getExpenses(groupId)
+        RetrofitInstance.getApi(context).getGroup(groupId)
+            .enqueue(object : Callback<Group> {
+
+                override fun onResponse(
+                    call: Call<Group>,
+                    response: Response<Group>
+                ) {
+                    if (response.isSuccessful) {
+                        groupName = response.body()?.name ?: "Group"
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<Group>,
+                    t: Throwable
+                ) {
+                }
+            })
+
+        RetrofitInstance.getApi(context).getExpenses(groupId)
             .enqueue(object : Callback<List<Expense>> {
 
                 override fun onResponse(
@@ -71,21 +97,53 @@ fun GroupDetailsScreen(
             .padding(top = 56.dp, bottom = 20.dp)
     ) {
 
-        Text(
-            text = "🏖️ Group Expenses",
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Column {
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Group",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
 
-        Text(
-            text = "Total: ${total} PLN",
-            fontSize = 18.sp,
-            color = Color.Gray
-        )
+            Text(
+                text = groupName,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+        }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(4.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(22.dp)
+            ) {
+                Text(
+                    text = "Total expenses",
+                    fontSize = 15.sp,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "${"%.2f".format(total)} PLN",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (isLoading) {
 
@@ -126,12 +184,7 @@ fun GroupDetailsScreen(
                                 modifier = Modifier
                                     .size(58.dp)
                                     .background(
-                                        brush = Brush.linearGradient(
-                                            listOf(
-                                                Color(0xFF8B5CF6),
-                                                Color(0xFFA78BFA)
-                                            )
-                                        ),
+                                        color = Color.Black,
                                         shape = RoundedCornerShape(18.dp)
                                     ),
                                 contentAlignment = Alignment.Center
@@ -170,7 +223,7 @@ fun GroupDetailsScreen(
 
                             Button(
                                 onClick = {
-                                    RetrofitInstance.api.deleteExpense(expense.id)
+                                    RetrofitInstance.getApi(context).deleteExpense(expense.id)
                                         .enqueue(object : Callback<Map<String, String>> {
 
                                             override fun onResponse(
@@ -210,7 +263,7 @@ fun GroupDetailsScreen(
                 .height(58.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7C4DFF)
+                containerColor = Color.Black
             )
         ) {
 
@@ -229,7 +282,7 @@ fun GroupDetailsScreen(
                 .height(58.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7C4DFF)
+                containerColor = Color.Black
             )
         ) {
 
@@ -246,7 +299,10 @@ fun GroupDetailsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(58.dp),
-            shape = RoundedCornerShape(18.dp)
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color.Black
+            )
         ) {
 
             Text(
