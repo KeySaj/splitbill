@@ -2,7 +2,7 @@ package com.example.mobile_app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val PurplePrimary = Color(0xFF7C4DFF)
+val BlackPrimary = Color.Black
 val PurpleLight = Color(0xFFEDE7F6)
 
 val Background = Color(0xFFF7F7FA)

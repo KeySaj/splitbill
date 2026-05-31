@@ -17,12 +17,17 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedTextFieldDefaults
 
 @Composable
 fun AddExpenseScreen(
     groupId: Int,
     onBackClick: () -> Unit
 ) {
+
+    val context = LocalContext.current
+
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
 
@@ -31,12 +36,21 @@ fun AddExpenseScreen(
     var selectedParticipants by remember { mutableStateOf<List<String>>(emptyList()) }
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val inputColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = Color.Black,
+        unfocusedBorderColor = Color(0xFFBDBDBD),
+        focusedLabelColor = Color.Black,
+        unfocusedLabelColor = Color.Gray,
+        cursorColor = Color.Black
+    )
+
     var isLoadingMembers by remember { mutableStateOf(true) }
 
     LaunchedEffect(groupId) {
         isLoadingMembers = true
 
-        RetrofitInstance.api.getGroup(groupId)
+        RetrofitInstance.getApi(context).getGroup(groupId)
             .enqueue(object : Callback<Group> {
 
                 override fun onResponse(
@@ -78,11 +92,20 @@ fun AddExpenseScreen(
             .verticalScroll(rememberScrollState())
     ) {
 
-        Text(
-            text = "💸 Add Expense",
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Column {
+
+            Text(
+                text = "SplitBill",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+
+            Text(
+                text = "Add Expense",
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
 
@@ -103,12 +126,7 @@ fun AddExpenseScreen(
                     modifier = Modifier
                         .size(72.dp)
                         .background(
-                            brush = Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFFA78BFA)
-                                )
-                            ),
+                            color = Color.Black,
                             shape = RoundedCornerShape(22.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -127,7 +145,8 @@ fun AddExpenseScreen(
                     label = { Text("Expense Title") },
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = inputColors
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -138,13 +157,16 @@ fun AddExpenseScreen(
                     label = { Text("Amount") },
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = inputColors
                 )
 
                 Spacer(modifier = Modifier.height(22.dp))
 
                 if (isLoadingMembers) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = Color.Black
+                    )
                 } else {
 
                     Text(
@@ -164,7 +186,11 @@ fun AddExpenseScreen(
                                 selected = paidBy == member,
                                 onClick = {
                                     paidBy = member
-                                }
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color.Black,
+                                    unselectedColor = Color.Gray
+                                )
                             )
 
                             Text(text = member)
@@ -197,7 +223,12 @@ fun AddExpenseScreen(
                                         } else {
                                             selectedParticipants - member
                                         }
-                                }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color.Black,
+                                    uncheckedColor = Color.Gray,
+                                    checkmarkColor = Color.White
+                                )
                             )
 
                             Text(text = member)
@@ -252,7 +283,7 @@ fun AddExpenseScreen(
                     participants = selectedParticipants
                 )
 
-                RetrofitInstance.api.createExpense(groupId, request)
+                RetrofitInstance.getApi(context).createExpense(groupId, request)
                     .enqueue(object : Callback<Expense> {
 
                         override fun onResponse(
@@ -279,7 +310,7 @@ fun AddExpenseScreen(
                 .height(58.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7C4DFF)
+                containerColor = Color.Black
             )
         ) {
             Text(
@@ -295,7 +326,10 @@ fun AddExpenseScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(58.dp),
-            shape = RoundedCornerShape(18.dp)
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color.Black
+            )
         ) {
             Text(
                 text = "Back",

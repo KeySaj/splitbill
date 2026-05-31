@@ -9,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -17,6 +16,11 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,6 +31,8 @@ fun GroupsScreen(
     onLogoutClick: () -> Unit
 ) {
 
+    val context = LocalContext.current
+
     var groups by remember {
         mutableStateOf<List<Group>>(emptyList())
     }
@@ -35,9 +41,13 @@ fun GroupsScreen(
         mutableStateOf(true)
     }
 
+    var showMenu by remember {
+        mutableStateOf(false)
+    }
+
     LaunchedEffect(refresh) {
 
-        RetrofitInstance.api.getGroups()
+        RetrofitInstance.getApi(context).getGroups()
             .enqueue(object : Callback<List<Group>> {
 
                 override fun onResponse(
@@ -70,11 +80,77 @@ fun GroupsScreen(
             .padding(top = 56.dp, bottom = 20.dp)
     ) {
 
-        Text(
-            text = "💸 My Groups",
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column {
+
+                Text(
+                    text = "SplitBill",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+
+                Text(
+                    text = "My Groups",
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+            }
+            Box {
+
+                IconButton(
+                    onClick = {
+                        showMenu = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Menu",
+                        tint = Color.Black
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = {
+                        showMenu = false
+                    }
+                ) {
+
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(18.dp)
+                                )
+
+                                Text(
+                                    text = "Logout",
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            onLogoutClick()
+                        }
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
 
@@ -84,104 +160,147 @@ fun GroupsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = Color.Black
+                )
             }
 
         } else {
 
-            LazyColumn(
-                modifier = Modifier.weight(1f)
-            ) {
+            if (groups.isEmpty()) {
 
-                items(groups) { group ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 18.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        elevation = CardDefaults.cardElevation(8.dp),
-                        onClick = {
-                            onGroupClick(group.id)
-                        },
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White
-                        )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
 
-                        Row(
+                        Text(
+                            text = "No groups yet",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Create your first expense group",
+                            fontSize = 15.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+
+            } else {
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f)
+                ) {
+
+                    items(groups) { group ->
+
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(22.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp)
+                                .padding(bottom = 14.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            elevation = CardDefaults.cardElevation(4.dp),
+                            onClick = {
+                                onGroupClick(group.id)
+                            },
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            )
                         ) {
 
-                            Box(
+                            Row(
                                 modifier = Modifier
-                                    .size(60.dp)
-                                    .background(
-                                        brush = Brush.linearGradient(
-                                            listOf(
-                                                Color(0xFF8B5CF6),
-                                                Color(0xFFA78BFA)
-                                            )
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(54.dp)
+                                        .background(
+                                            color = Color.Black,
+                                            shape = RoundedCornerShape(16.dp)
                                         ),
-                                        shape = RoundedCornerShape(18.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
+                                    contentAlignment = Alignment.Center
+                                ) {
 
-                                Text(
-                                    text = "👥",
-                                    fontSize = 28.sp
-                                )
-                            }
+                                    Text(
+                                        text = "👥",
+                                        fontSize = 26.sp
+                                    )
+                                }
 
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
 
-                                Text(
-                                    text = group.name,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                    Text(
+                                        text = group.name,
+                                        fontSize = 21.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(5.dp))
 
-                                Text(
-                                    text = "${group.members.size} members",
-                                    color = Color.Gray
-                                )
-                            }
+                                    Text(
+                                        text = "${group.members.size} members",
+                                        color = Color.Gray,
+                                        fontSize = 14.sp
+                                    )
+                                }
 
-                            Button(
-                                onClick = {
-                                    RetrofitInstance.api.deleteGroup(group.id)
-                                        .enqueue(object : Callback<Map<String, String>> {
+                                Button(
+                                    onClick = {
+                                        RetrofitInstance.getApi(context).deleteGroup(group.id)
+                                            .enqueue(object : Callback<Map<String, String>> {
 
-                                            override fun onResponse(
-                                                call: Call<Map<String, String>>,
-                                                response: Response<Map<String, String>>
-                                            ) {
-                                                if (response.isSuccessful) {
-                                                    groups = groups.filter { it.id != group.id }
+                                                override fun onResponse(
+                                                    call: Call<Map<String, String>>,
+                                                    response: Response<Map<String, String>>
+                                                ) {
+                                                    if (response.isSuccessful) {
+                                                        groups = groups.filter { it.id != group.id }
+                                                    }
                                                 }
-                                            }
 
-                                            override fun onFailure(
-                                                call: Call<Map<String, String>>,
-                                                t: Throwable
-                                            ) {
-                                                t.printStackTrace()
-                                            }
-                                        })
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFE53935)
-                                )
-                            ) {
-                                Text("Delete")
+                                                override fun onFailure(
+                                                    call: Call<Map<String, String>>,
+                                                    t: Throwable
+                                                ) {
+                                                    t.printStackTrace()
+                                                }
+                                            })
+                                    },
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFE53935)
+                                    ),
+                                    contentPadding = PaddingValues(
+                                        horizontal = 18.dp,
+                                        vertical = 0.dp
+                                    ),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Text(
+                                        text = "Delete",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
                         }
                     }
@@ -196,7 +315,7 @@ fun GroupsScreen(
                 .height(58.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7C4DFF)
+                containerColor = Color.Black
             )
         ) {
 
@@ -207,19 +326,5 @@ fun GroupsScreen(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedButton(
-            onClick = onLogoutClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp),
-            shape = RoundedCornerShape(18.dp)
-        ) {
-
-            Text(
-                text = "Logout",
-                fontSize = 17.sp
-            )
-        }
     }
 }

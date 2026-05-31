@@ -8,7 +8,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,15 +15,26 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedTextFieldDefaults
 
 @Composable
 fun AddGroupScreen(
     onBackClick: () -> Unit
 ) {
 
+    val context = LocalContext.current
+
     var groupName by remember { mutableStateOf("") }
     var members by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val inputColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = Color.Black,
+        unfocusedBorderColor = Color(0xFFBDBDBD),
+        focusedLabelColor = Color.Black,
+        unfocusedLabelColor = Color.Gray,
+        cursorColor = Color.Black
+    )
 
     Column(
         modifier = Modifier
@@ -60,12 +70,7 @@ fun AddGroupScreen(
                     modifier = Modifier
                         .size(70.dp)
                         .background(
-                            brush = Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFFA78BFA)
-                                )
-                            ),
+                            color = Color.Black,
                             shape = RoundedCornerShape(20.dp)
                         ),
                     contentAlignment = androidx.compose.ui.Alignment.Center
@@ -85,7 +90,8 @@ fun AddGroupScreen(
                     label = { Text("Group Name") },
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = inputColors
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -98,7 +104,8 @@ fun AddGroupScreen(
                         Text("Example: Jan, Jakub")
                     },
                     shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = inputColors
                 )
             }
         }
@@ -138,7 +145,7 @@ fun AddGroupScreen(
                     members = memberList
                 )
 
-                RetrofitInstance.api.createGroup(request)
+                RetrofitInstance.getApi(context).createGroup(request)
                     .enqueue(object : Callback<Group> {
 
                         override fun onResponse(
@@ -163,7 +170,7 @@ fun AddGroupScreen(
                 .height(58.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7C4DFF)
+                containerColor = Color.Black
             )
         ) {
 
@@ -180,9 +187,11 @@ fun AddGroupScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(58.dp),
-            shape = RoundedCornerShape(18.dp)
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color.Black
+            )
         ) {
-
             Text(
                 text = "Back",
                 fontSize = 17.sp

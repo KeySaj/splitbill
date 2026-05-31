@@ -12,6 +12,11 @@ import androidx.compose.ui.unit.sp
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 
 @Composable
 fun LoginScreen(
@@ -20,8 +25,17 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val inputColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = Color.Black,
+        unfocusedBorderColor = Color(0xFFBDBDBD),
+        focusedLabelColor = Color.Black,
+        unfocusedLabelColor = Color.Gray,
+        cursorColor = Color.Black
+    )
 
     Column(
         modifier = Modifier
@@ -56,7 +70,8 @@ fun LoginScreen(
             label = { Text("Email") },
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            colors = inputColors
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -67,7 +82,20 @@ fun LoginScreen(
             label = { Text("Password") },
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            colors = inputColors,
+            visualTransformation =
+                if (passwordVisible) VisualTransformation.None
+                else PasswordVisualTransformation(),
+
+            trailingIcon = {
+                TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Text(
+                        text = if (passwordVisible) "Hide" else "Show",
+                        color = Color.Black
+                    )
+                }
+            }
         )
 
         errorMessage?.let {
@@ -111,6 +139,15 @@ fun LoginScreen(
                             isLoading = false
 
                             if (response.isSuccessful) {
+
+                                response.body()?.token?.let {
+
+                                    TokenManager.saveToken(
+                                        context,
+                                        it
+                                    )
+                                }
+
                                 onLoginClick()
                             } else {
                                 errorMessage = "Invalid email or password"
@@ -127,8 +164,14 @@ fun LoginScreen(
                     })
             },
             enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Black,
+                contentColor = Color.White
+            )
         ) {
             Text(
                 text = if (isLoading) "Logging in..." else "Login"
@@ -137,7 +180,12 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        TextButton(onClick = onRegisterClick) {
+        TextButton(
+            onClick = onRegisterClick,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = Color.Black
+            )
+        ) {
             Text("Create account")
         }
     }
