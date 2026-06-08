@@ -9,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +28,10 @@ fun SettlementsScreen(
 
     var settlements by remember {
         mutableStateOf<List<Settlement>>(emptyList())
+    }
+
+    var paidSettlements by remember {
+        mutableStateOf<List<String>>(emptyList())
     }
 
     var isLoading by remember {
@@ -62,6 +65,11 @@ fun SettlementsScreen(
             })
     }
 
+    val visibleSettlements = settlements.filter { settlement ->
+        val key = "${settlement.from_user}-${settlement.to_user}-${settlement.amount}"
+        !paidSettlements.contains(key)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -83,9 +91,17 @@ fun SettlementsScreen(
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
             )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Optimized payment plan based on group expenses",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (isLoading) {
 
@@ -94,12 +110,14 @@ fun SettlementsScreen(
                 contentAlignment = Alignment.Center
             ) {
 
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = Color.Black
+                )
             }
 
         } else {
 
-            if (settlements.isEmpty()) {
+            if (visibleSettlements.isEmpty()) {
 
                 Box(
                     modifier = Modifier
@@ -108,11 +126,24 @@ fun SettlementsScreen(
                     contentAlignment = Alignment.Center
                 ) {
 
-                    Text(
-                        text = "No settlements yet 👀",
-                        color = Color.Gray,
-                        fontSize = 18.sp
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No payments needed",
+                            color = Color.Black,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "This group is already balanced",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
 
             } else {
@@ -121,7 +152,10 @@ fun SettlementsScreen(
                     modifier = Modifier.weight(1f)
                 ) {
 
-                    items(settlements) { settlement ->
+                    items(visibleSettlements) { settlement ->
+
+                        val settlementKey =
+                            "${settlement.from_user}-${settlement.to_user}-${settlement.amount}"
 
                         Card(
                             modifier = Modifier
@@ -138,7 +172,8 @@ fun SettlementsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(22.dp),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
 
                                 Box(
@@ -152,8 +187,10 @@ fun SettlementsScreen(
                                 ) {
 
                                     Text(
-                                        text = "💸",
-                                        fontSize = 28.sp
+                                        text = "→",
+                                        fontSize = 30.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
 
@@ -164,7 +201,8 @@ fun SettlementsScreen(
                                     Text(
                                         text = "${settlement.from_user} owes ${settlement.to_user}",
                                         fontSize = 20.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -175,6 +213,29 @@ fun SettlementsScreen(
                                         color = Color.Black,
                                         fontWeight = FontWeight.SemiBold
                                     )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Button(
+                                        onClick = {
+                                            paidSettlements = paidSettlements + settlementKey
+                                        },
+                                        shape = RoundedCornerShape(50),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.Black,
+                                            contentColor = Color.White
+                                        ),
+                                        contentPadding = PaddingValues(
+                                            horizontal = 16.dp,
+                                            vertical = 0.dp
+                                        ),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Text(
+                                            text = "Mark as paid",
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 }
                             }
                         }
